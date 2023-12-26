@@ -5,7 +5,6 @@ SCRIPTPATH="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 
 VAULTWARDEN_FOLDER="vaultwarden"
 CREATE_APP_NAME=" "
-ENABLE_AUTOBUS_BACKUP=0
 ENABLE_DUO=0
 GIT_HASH="main"
 USE_PSQL=0
@@ -42,18 +41,13 @@ function heroku_bootstrap {
     then
         echo "We will use Heroku Postgres, which is free and sufficient for a small instance"
         heroku addons:create heroku-postgresql -a "$APP_NAME"
-        
-        echo "Checking for additional addons"
-        check_addons
+
     else
         if [ "${HEROKU_VERIFIED}" -eq "1" ]
         then
             echo "We will use JawsDB Maria edition, which is free and sufficient for a small instance"
             heroku addons:create jawsdb -a "$APP_NAME"
-        
-            echo "Checking for additional addons"
-            check_addons
-        
+                
             echo "Now we use the JAWS DB config as the database URL for Bitwarden"
             echo "Supressing output due to sensitive nature."
             heroku config:set DATABASE_URL="$(heroku config:get JAWSDB_URL -a "${APP_NAME}")" -a "${APP_NAME}" > /dev/null
@@ -72,24 +66,6 @@ function heroku_bootstrap {
  
 }
 
-function check_addons {
-
-     if [ "${HEROKU_VERIFIED}" -eq "1" ]
-     then
-        # Check if Autobus is added
-        if [ "${ENABLE_AUTOBUS_BACKUP}" -eq "1" ]
-        then
-            if (heroku addons -a "${APP_NAME}" | grep "autobus"); then
-                echo "Autobus is enabled, skipping."
-            else
-                echo "Autobus is not enabled, enabling."
-                echo "We will install AutoBus for database backup functionality now. AutoBus requires collaborator access to function."
-                heroku access:add heroku@autobus.io -a "$APP_NAME" --permissions operate
-                heroku addons:create autobus -a "$APP_NAME"
-            fi
-        fi
-    fi
-}
 
 function build_image {
     git_clone "${GIT_HASH}"
@@ -158,7 +134,6 @@ then
 elif [[ ${STRATEGY_TYPE} = "update" ]]
 then
     APP_NAME=${CREATE_APP_NAME}
-    check_addons
     build_image
 else
     echo "Unexpected workflow, failing build"
